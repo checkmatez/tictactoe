@@ -40,10 +40,13 @@ class GameBoard extends Component {
   }
 
   _onSquareClick = (index, event) => {
-    const ownMark = 'X'
+    if (event.evt.button !== 0) {
+      return
+    }
     if (this.state.gameState[index] || !this.state.gameInProgress) {
       return
     }
+    const ownMark = 'X'
     this.setState(prevState => {
       const gameState = [...prevState.gameState]
       gameState.splice(index, 1, ownMark)

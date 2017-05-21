@@ -38,16 +38,3 @@ export const Input = styled.input`
   min-width: 80%;
   padding: 10px;
 `
-export const Button = styled.button`
-  display: inline-block;
-  cursor: pointer;
-  background-color: red;
-  color: white;
-  border: none;
-  outline: none;
-  border-radius: 3px;
-  font-size: 1rem;
-  padding: 10px;
-  margin: 10px auto;
-  min-width: 80%;
-`

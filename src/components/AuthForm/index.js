@@ -5,13 +5,15 @@ import PresentationalForm from './PresentationalForm'
 import loginMutation from '../../mutations/login'
 import signupMutation from '../../mutations/signup'
 import currentUserQuery from '../../queries/currentUser'
-import { AUTH_TOKEN_KEY } from '../../config/constants'
+import { AUTH_TOKEN_KEY, AUTH_USER_ID } from '../../config/constants'
 
 class AuthForm extends Component {
   _onSubmit = async ({ email, password }) => {
     const { login, signup, history } = this.props
     try {
-      await login({ email, password })
+      const result = await login({ email, password })
+      localStorage.setItem(AUTH_TOKEN_KEY, result.data.signinUser.token)
+      localStorage.setItem(AUTH_USER_ID, result.data.signinUser.user.id)
       history.push('/game')
     } catch (error) {
       try {
@@ -20,6 +22,7 @@ class AuthForm extends Component {
         try {
           const result = await login({ email, password })
           localStorage.setItem(AUTH_TOKEN_KEY, result.data.signinUser.token)
+          localStorage.setItem(AUTH_USER_ID, result.data.signinUser.user.id)
           history.push('/game')
         } catch (error) {
           console.log('error while login in: ', error)

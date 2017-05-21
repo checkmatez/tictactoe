@@ -1,6 +1,7 @@
 import React, { Component } from 'react'
 
-import { Container, LoginForm, Input, Button } from './styled'
+import { Container, LoginForm, Input } from './styled'
+import { Button } from '../StyledCommon'
 
 class PresentationalForm extends Component {
   state = {
@@ -41,7 +42,7 @@ class PresentationalForm extends Component {
             value={this.state.password}
             onChange={this._onChange}
           />
-          <Button type="Submit">Войти / Зарегистрироваться</Button>
+          <Button type="Submit" primary>Войти / Зарегистрироваться</Button>
         </LoginForm>
       </Container>
     )
