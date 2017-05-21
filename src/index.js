@@ -11,7 +11,7 @@ import { AUTH_TOKEN_KEY } from './config/constants'
 import App from './components/App'
 
 const wsClient = new SubscriptionClient(
-  `wss://subscriptions.graph.cool/v1/cj2uilq7diavq014995ua35ve`,
+  process.env.REACT_APP_GRAPH_COOL_SUBSCRIPTIONS,
   {
     reconnect: true,
     connectionParams: {
@@ -19,9 +19,8 @@ const wsClient = new SubscriptionClient(
     },
   }
 )
-
 const networkInterface = createNetworkInterface({
-  uri: 'https://api.graph.cool/simple/v1/cj2uilq7diavq014995ua35ve',
+  uri: process.env.REACT_APP_GRAPH_COOL_SIMPLE_API,
 })
 
 networkInterface.use([
