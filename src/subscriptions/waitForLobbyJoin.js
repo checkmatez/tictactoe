@@ -1,11 +1,11 @@
-import gql from 'graphql-tag'
+import gql from 'graphql-tag';
 
 const mutation = gql`
   subscription waitForLobbyJoin($lobbyId: ID!) {
     Lobby(filter: {
       AND: [
         { mutation_in: [UPDATED] },
-        { updatedFields_contains: "player2"},
+        { updatedFields_contains: "status"},
         { node: {
           id: $lobbyId
         }}
@@ -14,6 +14,7 @@ const mutation = gql`
       node {
         id
         updatedAt
+        status
         player2 {
           id
           email
@@ -21,6 +22,6 @@ const mutation = gql`
       }
     }
   }
-`
+`;
 
-export default mutation
+export default mutation;

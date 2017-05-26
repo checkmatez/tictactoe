@@ -17,10 +17,15 @@ class Main extends Component {
 
   state = {
     lookingForOpponent: false,
+    opponent: null,
   }
 
   _handleLobbyJoin = data => {
     console.log(data.Lobby.node)
+    this.setState({
+      opponent: data.Lobby.node,
+      lookingForOpponent: false,
+    })
   }
 
   _subscribeToLobbyJoin = lobbyId => {
