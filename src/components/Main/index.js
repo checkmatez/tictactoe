@@ -6,7 +6,9 @@ import { Header, Button } from './styled'
 import activeLobbyQuery from '../../queries/activeLobby'
 import joinExistingLobby from '../../mutations/joinExistingLobby'
 import createNewLobby from '../../mutations/createNewLobby'
+import makeAMove from '../../mutations/makeAMove'
 import waitForLobbyJoin from '../../subscriptions/waitForLobbyJoin'
+import waitForNewMove from '../../subscriptions/waitForNewMove'
 import { AUTH_USER_ID } from '../../config/constants'
 
 class Main extends Component {
@@ -16,11 +18,47 @@ class Main extends Component {
   }
 
   state = {
-    lookingForOpponent: false,
+    lobbyStatus: 'Inactive',
+    gameField: Array(9).fill(false),
+    gameStatus: null,
+    currentGameId: null,
+    ownTurn: false,
+    ownMark: 'X',
+    opponent: null,
   }
 
-  _handleLobbyJoin = data => {
-    console.log(data.Lobby.node)
+  _handleLobbyJoin = ({ Lobby: { node } }) => {
+    this._unsubscribeFromLobbyJoin()
+    this._subscribeToNewMoves(node.id)
+    this.setState({
+      lobbyStatus: 'Found',
+      gameField: Array(9).fill(false),
+      gameStatus: 'InProgress',
+      currentGameId: node.games[0].id,
+      ownTurn: true,
+      ownMark: 'X',
+      opponent: {
+        email: node.player2.email,
+      },
+    })
+  }
+
+  _handleNewMove = ({ Move: { node } }) => {
+    this.setState(prevState => {
+      const newState = {}
+      if (prevState.gameField[node.square] !== node.mark) {
+        const gameField = [...prevState.gameField]
+        gameField.splice(node.square, 1, node.mark)
+        newState.gameField = gameField
+      }
+      if (prevState.currentGameId !== node.game.id) {
+        newState.currentGameId = node.game.id
+      }
+      if (node.mark !== prevState.ownMark) {
+        newState.ownTurn = !prevState.ownTurn
+      }
+      return newState
+    })
   }
 
   _subscribeToLobbyJoin = lobbyId => {
@@ -40,54 +78,114 @@ class Main extends Component {
       })
   }
 
+  _unsubscribeFromLobbyJoin = () => {
+    if (this.newLobbyObserver) {
+      this.newLobbyObserver.unsubscribe()
+    }
+  }
+
+  _subscribeToNewMoves = lobbyId => {
+    this.newMoveObserver = this.props.client
+      .subscribe({
+        query: waitForNewMove,
+        variables: {
+          lobbyId,
+        },
+      })
+      .subscribe({
+        next: this._handleNewMove,
+        error(err) {
+          console.error(err)
+          this._subscribeToNewMoves(lobbyId)
+        },
+      })
+  }
+
+  _createNewLobby = () => {
+    return this.props.client.mutate({
+      mutation: createNewLobby,
+      variables: {
+        playerId: localStorage.getItem(AUTH_USER_ID),
+      },
+    })
+  }
+
+  _joinExistingLobby = lobbyId => {
+    return this.props.client.mutate({
+      mutation: joinExistingLobby,
+      variables: {
+        lobbyId,
+        playerId: localStorage.getItem(AUTH_USER_ID),
+      },
+    })
+  }
+
   _onPlayClick = async e => {
+    this.setState({
+      lobbyStatus: 'Searching',
+    })
     const lobbyResult = await this.props.client.query({
       query: activeLobbyQuery,
       variables: {
         player2filter: null,
       },
     })
-    console.log(lobbyResult)
-    if (lobbyResult.data.allLobbies.length === 1) {
-      this.props.client
-        .mutate({
-          mutation: joinExistingLobby,
-          variables: {
-            lobbyId: lobbyResult.data.allLobbies[0].id,
-            playerId: localStorage.getItem(AUTH_USER_ID),
-          },
-        })
-        .then(res => {
-          console.log('successfully joined existing lobby')
-        })
-        .catch(err => console.log('error while joining existing lobby: ', err))
+    if (lobbyResult.data.allLobbies.length === 0) {
+      try {
+        const newLobbyResult = await this._createNewLobby()
+        this._subscribeToLobbyJoin(newLobbyResult.data.createLobby.id)
+      } catch (error) {
+        console.error(error)
+      }
     } else {
-      this.props.client
-        .mutate({
-          mutation: createNewLobby,
-          variables: {
-            playerId: localStorage.getItem(AUTH_USER_ID),
+      const lobbyId = lobbyResult.data.allLobbies[0].id
+      try {
+        const exisingLobbyResult = await this._joinExistingLobby(lobbyId)
+        this._subscribeToNewMoves(lobbyId)
+        this.setState({
+          lobbyStatus: 'Found',
+          gameField: Array(9).fill(false),
+          gameStatus: 'InProgress',
+          currentGameId: exisingLobbyResult.data.updateLobby.games[0].id,
+          ownTurn: false,
+          ownMark: 'O',
+          opponent: {
+            email: lobbyResult.data.allLobbies[0].player1.email,
           },
         })
-        .then(result => {
-          console.log(this.props.client)
-          this._subscribeToLobbyJoin(result.data.createLobby.id)
-          // this.props.client
-          //   .subscribe({
-          //     document: waitForLobbyJoin,
-          //     variables: {
-          //       lobbyId: result.data.createLobby.id,
-          //     },
-          //   })
-          //   .then(res => {
-          //     console.log('sub received:', res)
-          //   })
-        })
-        .catch(err => console.log('some error ', err))
+      } catch (error) {
+        console.error(error)
+      }
+    }
+  }
+
+  _makeMove = square => {
+    return this.props.client.mutate({
+      mutation: makeAMove,
+      variables: {
+        gameId: this.state.currentGameId,
+        square,
+        mark: this.state.ownMark,
+      },
+    })
+  }
+
+  _handleSquareClick = async (index, event) => {
+    if (event.evt.button !== 0) {
+      return
+    }
+    if (this.state.gameField[index] || this.state.gameStatus !== 'InProgress') {
+      return
     }
 
-    this.setState({
-      lookingForOpponent: true,
+    this._makeMove(index)
+
+    this.setState(prevState => {
+      const gameField = [...prevState.gameField]
+      gameField.splice(index, 1, prevState.ownMark)
+      return {
+        gameField,
+      }
     })
   }
 
@@ -112,8 +210,12 @@ class Main extends Component {
               flex: `0 0 ${this.gameboardSize}px`,
             }}
           >
-            <Gameboard size={this.gameboardSize} />
-            {this.state.lookingForOpponent
+            <Gameboard
+              size={this.gameboardSize}
+              gameField={this.state.gameField}
+              onSquareClick={this._handleSquareClick}
+            />
+            {this.state.lobbyStatus === 'Searching'
               ? <p>ищем достойного противника...</p>
               : <Button onClick={this._onPlayClick}>
                   Играть

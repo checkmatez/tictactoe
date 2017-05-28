@@ -5,7 +5,6 @@ const mutation = gql`
     Lobby(filter: {
       AND: [
         { mutation_in: [UPDATED] },
-        { updatedFields_contains: "player2"},
         { node: {
           id: $lobbyId
         }}
@@ -14,9 +13,13 @@ const mutation = gql`
       node {
         id
         updatedAt
+        status
         player2 {
           id
           email
+        }
+        games(last: 1) {
+          id
         }
       }
     }

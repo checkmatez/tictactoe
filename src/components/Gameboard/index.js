@@ -5,10 +5,8 @@ import { GAMEBOARD_ROWS_COUNT } from '../../config/constants'
 import Square from '../Square'
 
 class GameBoard extends Component {
-  state = {
-    gameState: Array(9).fill(false),
-    gameInProgress: true,
-    gameResult: null,
+  _onSquareClick = (index, event) => {
+    this.props.onSquareClick(index, event)
   }
 
   _renderLines = () => {
@@ -39,23 +37,6 @@ class GameBoard extends Component {
     return lines
   }
 
-  _onSquareClick = (index, event) => {
-    if (event.evt.button !== 0) {
-      return
-    }
-    if (this.state.gameState[index] || !this.state.gameInProgress) {
-      return
-    }
-    const ownMark = 'X'
-    this.setState(prevState => {
-      const gameState = [...prevState.gameState]
-      gameState.splice(index, 1, ownMark)
-      return {
-        gameState,
-      }
-    })
-  }
-
   _renderSquares = () => {
     const cellWidth = this.props.size / GAMEBOARD_ROWS_COUNT
     const coordinates = []
@@ -73,7 +54,7 @@ class GameBoard extends Component {
         xPos={coord[0]}
         yPos={coord[1]}
         cellWidth={cellWidth}
-        mark={this.state.gameState[index]}
+        mark={this.props.gameField[index]}
         fill={'black'}
         onClick={this._onSquareClick.bind(this, index)}
       />

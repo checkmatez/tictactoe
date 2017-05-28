@@ -1,9 +1,11 @@
 import gql from 'graphql-tag'
 
 const mutation = gql`
-  mutation makeAMove($lobbyId: ID!, $playerId: ID!) {
-    updateLobby(id: $lobbyId, player2Id: $playerId) {
+  mutation makeMove($gameId: ID!, $square: Int!, $mark: MOVE_MARK!) {
+    createMove(gameId: $gameId, square: $square, mark: $mark) {
       id
+      square
+      mark
     }
   }
 `
