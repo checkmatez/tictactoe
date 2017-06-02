@@ -1,10 +1,14 @@
 import gql from 'graphql-tag'
 
 const query = gql`
-  query activeLobby($player2filter: UserFilter) {
+  query activeLobby($updatedAfter: DateTime!, $playerNull: UserFilter) {
     allLobbies(filter: {
-      player2: $player2filter
-    }, orderBy: createdAt_ASC, first: 1) {
+      AND: [
+        { status: Searching },
+        { updatedAt_gte: $updatedAfter}
+        { player2: $playerNull },
+      ]
+    }, orderBy: updatedAt_ASC, first: 1) {
       id
       player1 {
         id

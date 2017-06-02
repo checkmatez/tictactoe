@@ -38,6 +38,7 @@ class GameBoard extends Component {
   }
 
   _renderSquares = () => {
+    const { wonCombo } = this.props
     const cellWidth = this.props.size / GAMEBOARD_ROWS_COUNT
     const coordinates = []
 
@@ -55,7 +56,7 @@ class GameBoard extends Component {
         yPos={coord[1]}
         cellWidth={cellWidth}
         mark={this.props.gameField[index]}
-        fill={'black'}
+        fill={wonCombo && wonCombo.includes(index) ? 'green' : 'black'}
         onClick={this._onSquareClick.bind(this, index)}
       />
     ))

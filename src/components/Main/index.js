@@ -7,6 +7,7 @@ import activeLobbyQuery from '../../queries/activeLobby'
 import joinExistingLobby from '../../mutations/joinExistingLobby'
 import createNewLobby from '../../mutations/createNewLobby'
 import makeAMove from '../../mutations/makeAMove'
+import setGameResult from '../../mutations/setGameResult'
 import waitForLobbyJoin from '../../subscriptions/waitForLobbyJoin'
 import waitForNewMove from '../../subscriptions/waitForNewMove'
 import { AUTH_USER_ID } from '../../config/constants'
@@ -24,6 +25,7 @@ class Main extends Component {
     currentGameId: null,
     ownTurn: false,
     ownMark: 'X',
+    wonCombo: null,
     opponent: null,
   }
 
@@ -50,7 +52,16 @@ class Main extends Component {
         const gameField = [...prevState.gameField]
         gameField.splice(node.square, 1, node.mark)
         newState.gameField = gameField
+
+        const wonCombo = this._checkGameState(gameField)
+        if (wonCombo) {
+          newState.wonCombo = wonCombo
+          newState.gameStatus = this.state.ownMark === 'X'
+            ? 'Player2Won'
+            : 'Player1Won'
+        }
       }
+
       if (prevState.currentGameId !== node.game.id) {
         newState.currentGameId = node.game.id
       }
@@ -120,16 +131,24 @@ class Main extends Component {
     })
   }
 
+  _queryForActiveLobby = () => {
+    const lobbyUpdatedAfter = new Date()
+    lobbyUpdatedAfter.setMinutes(lobbyUpdatedAfter.getMinutes() - 5)
+
+    return this.props.client.query({
+      query: activeLobbyQuery,
+      variables: {
+        updatedAfter: lobbyUpdatedAfter.toISOString(),
+        playerNull: null,
+      },
+    })
+  }
+
   _onPlayClick = async e => {
     this.setState({
       lobbyStatus: 'Searching',
     })
-    const lobbyResult = await this.props.client.query({
-      query: activeLobbyQuery,
-      variables: {
-        player2filter: null,
-      },
-    })
+    const lobbyResult = await this._queryForActiveLobby()
     if (lobbyResult.data.allLobbies.length === 0) {
       try {
         const newLobbyResult = await this._createNewLobby()
@@ -170,11 +189,46 @@ class Main extends Component {
     })
   }
 
+  _setGameResult = status => {
+    return this.props.client.mutate({
+      mutation: setGameResult,
+      variables: {
+        gameId: this.state.currentGameId,
+        status,
+      },
+    })
+  }
+
+  _checkGameState = gameField => {
+    const combos = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6],
+    ]
+    return combos.find(combo => {
+      let [a, b, c] = combo
+      return (
+        gameField[a] === gameField[b] &&
+        gameField[a] === gameField[c] &&
+        gameField[a]
+      )
+    })
+  }
+
   _handleSquareClick = async (index, event) => {
     if (event.evt.button !== 0) {
       return
     }
-    if (this.state.gameField[index] || this.state.gameStatus !== 'InProgress') {
+    if (
+      this.state.gameField[index] ||
+      this.state.gameStatus !== 'InProgress' ||
+      !this.state.ownTurn
+    ) {
       return
     }
 
@@ -183,8 +237,18 @@ class Main extends Component {
     this.setState(prevState => {
       const gameField = [...prevState.gameField]
       gameField.splice(index, 1, prevState.ownMark)
+      let { gameStatus } = prevState
+      const wonCombo = this._checkGameState(gameField)
+      if (wonCombo) {
+        gameStatus = this.state.ownMark === 'X' ? 'Player1Won' : 'Player2Won'
+        this._setGameResult(gameStatus)
+      }
+
       return {
         gameField,
+        wonCombo,
+        ownTurn: false,
+        gameStatus: gameStatus,
       }
     })
   }
@@ -213,6 +277,7 @@ class Main extends Component {
             <Gameboard
               size={this.gameboardSize}
               gameField={this.state.gameField}
+              wonCombo={this.state.wonCombo}
               onSquareClick={this._handleSquareClick}
             />
             {this.state.lobbyStatus === 'Searching'
